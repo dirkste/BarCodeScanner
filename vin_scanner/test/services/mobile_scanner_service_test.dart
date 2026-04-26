@@ -49,5 +49,29 @@ void main() {
       final result = await resultFuture;
       expect(result.rawValue, '1HGCM82633A123456');
     });
+
+    test('strips industry-standard I prefix from VIN barcode', () async {
+      final service = MobileScannerService();
+      service.startScan();
+
+      final resultFuture = service.results.first;
+      service.simulateDecode('I1HGCM82633A123456'); // I-prefixed — VIN extracted
+
+      final result = await resultFuture;
+      expect(result.rawValue, '1HGCM82633A123456');
+    });
+
+    test('rejects barcodes with no 17-char VIN sequence', () async {
+      final service = MobileScannerService();
+      service.startScan();
+
+      final resultFuture = service.results.first;
+      service.simulateDecode('12345');              // too short — rejected
+      service.simulateDecode('LT275/70R18');        // tire size — rejected
+      service.simulateDecode('1HGCM82633A123456'); // valid VIN — accepted
+
+      final result = await resultFuture;
+      expect(result.rawValue, '1HGCM82633A123456');
+    });
   });
 }

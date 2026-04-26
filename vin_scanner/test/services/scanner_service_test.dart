@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:vin_scanner/services/scanner_service.dart';
@@ -7,10 +8,19 @@ class _MockScannerService implements ScannerService {
   Stream<ScanResult> get results => const Stream.empty();
 
   @override
+  Widget buildPreview() => const SizedBox.shrink();
+
+  @override
   void startScan() {}
 
   @override
   void stopScan() {}
+
+  @override
+  void toggleTorch() {}
+
+  @override
+  void dispose() {}
 }
 
 void main() {
