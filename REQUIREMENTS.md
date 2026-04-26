@@ -107,8 +107,8 @@ All Phase One implementations must use these pinned versions. Do not upgrade wit
 
 | Package | Version |
 |---------|---------|
-| Flutter SDK | `>=3.10.0` |
-| Dart SDK | `>=3.0.0` |
+| Flutter SDK | `>=3.41.7` |
+| Dart SDK | `^3.11.5` |
 | `mobile_scanner` | `^5.0.0` |
 | `get_it` | `^7.0.0` |
 | `google_mlkit_barcode_scanning` *(fallback — activate only if pivot triggered)* | `^0.12.0` |

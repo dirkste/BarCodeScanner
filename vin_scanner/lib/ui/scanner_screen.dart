@@ -2,21 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
 
-import '../services/mobile_scanner_service.dart';
 import '../services/scanner_service.dart';
 
 class ScannerScreen extends StatefulWidget {
   final bool cameraPermissionDenied;
 
-  /// Overrides the camera widget — used in tests to avoid real hardware.
-  final Widget Function(void Function(BarcodeCapture))? cameraBuilder;
-
   const ScannerScreen({
     super.key,
     this.cameraPermissionDenied = false,
-    this.cameraBuilder,
   });
 
   @override
@@ -26,6 +20,7 @@ class ScannerScreen extends StatefulWidget {
 class _ScannerScreenState extends State<ScannerScreen> {
   late final ScannerService _scannerService;
   bool _scanning = false;
+  bool _torchOn = false;
   ScanResult? _result;
   bool _showHint = false;
   Timer? _hintTimer;
@@ -56,7 +51,18 @@ class _ScannerScreenState extends State<ScannerScreen> {
     _subscription?.cancel();
     _subscription = _scannerService.results.listen((result) {
       _hintTimer?.cancel();
-      if (mounted) setState(() => _result = result);
+      if (mounted) {
+        // Turn off torch on result — avoids CameraX state mismatch leaving the
+        // light stuck on when the user tries to toggle after the scan ends.
+        if (_torchOn) {
+          _torchOn = false;
+          _scannerService.toggleTorch();
+        }
+        setState(() {
+          _result = result;
+          _scanning = false;
+        });
+      }
     });
   }
 
@@ -70,11 +76,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
     });
   }
 
-  void _onBarcodeDetected(BarcodeCapture capture) {
-    final service = _scannerService;
-    if (service is MobileScannerService) {
-      service.onBarcodeDetected(capture);
-    }
+  void _toggleTorch() {
+    setState(() => _torchOn = !_torchOn);
+    _scannerService.toggleTorch();
   }
 
   @override
@@ -82,6 +86,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
     _hintTimer?.cancel();
     _subscription?.cancel();
     _scannerService.stopScan();
+    _scannerService.dispose();
     super.dispose();
   }
 
@@ -102,20 +107,30 @@ class _ScannerScreenState extends State<ScannerScreen> {
     }
 
     final result = _result;
-    final cameraWidget = widget.cameraBuilder != null
-        ? widget.cameraBuilder!(_onBarcodeDetected)
-        : MobileScanner(onDetect: _onBarcodeDetected);
 
     return Scaffold(
       body: Stack(
         children: [
-          cameraWidget,
+          _scannerService.buildPreview(),
           if (result != null)
             _ResultOverlay(result: result, onRescan: _resetScan)
           else if (_scanning)
-            _ScanningOverlay(showHint: _showHint)
+            _ScanningOverlay(showHint: _showHint, onCancel: _resetScan)
           else
             _ReadyOverlay(onStart: _startScanning),
+          Positioned(
+            top: 48,
+            right: 16,
+            child: IconButton(
+              icon: Icon(
+                _torchOn ? Icons.flashlight_on : Icons.flashlight_off,
+                color: _torchOn ? Colors.amber : Colors.white,
+                size: 32,
+              ),
+              onPressed: _toggleTorch,
+              tooltip: 'Toggle torch',
+            ),
+          ),
         ],
       ),
     );
@@ -166,8 +181,9 @@ class _ReadyOverlay extends StatelessWidget {
 
 class _ScanningOverlay extends StatelessWidget {
   final bool showHint;
+  final VoidCallback onCancel;
 
-  const _ScanningOverlay({this.showHint = false});
+  const _ScanningOverlay({this.showHint = false, required this.onCancel});
 
   @override
   Widget build(BuildContext context) {
@@ -207,6 +223,16 @@ class _ScanningOverlay extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: onCancel,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white24,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
+                  textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                child: const Text('Cancel'),
+              ),
             ],
           ),
         ),

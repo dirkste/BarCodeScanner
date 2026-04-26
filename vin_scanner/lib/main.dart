@@ -1,23 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'services/mobile_scanner_service.dart';
 import 'services/scanner_service.dart';
 import 'ui/scanner_screen.dart';
 
-void main() {
-  GetIt.instance.registerSingleton<ScannerService>(MobileScannerService());
-  runApp(const VinScannerApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final status = await Permission.camera.request();
+  GetIt.instance.registerFactory<ScannerService>(() => MobileScannerService());
+  runApp(VinScannerApp(cameraPermissionDenied: status.isDenied || status.isPermanentlyDenied));
 }
 
 class VinScannerApp extends StatelessWidget {
-  const VinScannerApp({super.key});
+  final bool cameraPermissionDenied;
+
+  const VinScannerApp({super.key, required this.cameraPermissionDenied});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       title: 'VIN Scanner',
-      home: ScannerScreen(),
+      home: ScannerScreen(cameraPermissionDenied: cameraPermissionDenied),
     );
   }
 }
