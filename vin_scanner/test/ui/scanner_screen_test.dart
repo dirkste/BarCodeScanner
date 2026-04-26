@@ -4,7 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:vin_scanner/services/scanner_service.dart';
+import 'package:vin_scanner/services/vehicle_lookup_service.dart';
 import 'package:vin_scanner/ui/scanner_screen.dart';
+
+// ---------------------------------------------------------------------------
+// Fakes
+// ---------------------------------------------------------------------------
 
 class _FakeScannerService implements ScannerService {
   final _controller = StreamController<ScanResult>.broadcast();
@@ -59,6 +64,13 @@ class _CountingTorchService implements ScannerService {
   void dispose() {}
 }
 
+/// Always returns a successful [VehicleInfo] immediately.
+class _FakeLookupService implements VehicleLookupService {
+  @override
+  Future<VehicleInfo> lookup(String vin) async =>
+      VehicleInfo(vin: vin, year: '2015', make: 'Chrysler', model: 'Town & Country');
+}
+
 void main() {
   final getIt = GetIt.instance;
   late _FakeScannerService fakeService;
@@ -67,6 +79,7 @@ void main() {
     await getIt.reset();
     fakeService = _FakeScannerService();
     getIt.registerSingleton<ScannerService>(fakeService);
+    getIt.registerSingleton<VehicleLookupService>(_FakeLookupService());
   });
 
   tearDown(() async {
@@ -156,6 +169,7 @@ void main() {
       final countingService = _CountingTorchService(fakeService, () => toggleTorchCalls++);
       await getIt.reset();
       getIt.registerSingleton<ScannerService>(countingService);
+      getIt.registerSingleton<VehicleLookupService>(_FakeLookupService());
 
       await tester.pumpWidget(const MaterialApp(home: ScannerScreen()));
 
@@ -187,6 +201,21 @@ void main() {
       await tester.pump();
       expect(find.text('Start Scan'), findsOneWidget);
       expect(find.text('Cancel'), findsNothing);
+    });
+
+    testWidgets('vehicle info appears after lookup resolves', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: ScannerScreen()));
+
+      await tester.tap(find.text('Start Scan'));
+      await tester.pump();
+
+      fakeService.emit(const ScanResult(rawValue: '2C4RDGCG0FR805928', elapsedMs: 45));
+      await tester.pumpAndSettle(); // result arrives and lookup future resolves
+
+      // Vehicle details visible
+      expect(find.textContaining('Chrysler'), findsOneWidget);
+      expect(find.textContaining('Town & Country'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
     });
   });
 }

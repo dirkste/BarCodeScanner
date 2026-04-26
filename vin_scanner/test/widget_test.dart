@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:vin_scanner/main.dart';
 import 'package:vin_scanner/services/scanner_service.dart';
+import 'package:vin_scanner/services/vehicle_lookup_service.dart';
 
 class _FakeScannerService implements ScannerService {
   @override
@@ -24,10 +25,17 @@ class _FakeScannerService implements ScannerService {
   void dispose() {}
 }
 
+class _FakeLookupService implements VehicleLookupService {
+  @override
+  Future<VehicleInfo> lookup(String vin) async =>
+      VehicleInfo(vin: vin, year: '2015', make: 'Chrysler', model: 'Town & Country');
+}
+
 void main() {
   setUp(() async {
     await GetIt.instance.reset();
     GetIt.instance.registerSingleton<ScannerService>(_FakeScannerService());
+    GetIt.instance.registerSingleton<VehicleLookupService>(_FakeLookupService());
   });
 
   tearDown(() async => GetIt.instance.reset());

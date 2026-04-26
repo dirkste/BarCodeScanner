@@ -28,11 +28,6 @@ class MobileScannerService implements ScannerService {
     return MobileScanner(
       controller: _cameraController,
       fit: BoxFit.cover,
-      // Restrict ML Kit analysis to the targeting rectangle (85% wide × 18%
-      // tall, centred). Coordinates are normalised 0–1 relative to widget size.
-      // Prerequisite: explicit cameraResolution on the controller (above) and
-      // BoxFit.cover — without both, scanWindow silently disables detection.
-      scanWindow: const Rect.fromLTRB(0.075, 0.41, 0.925, 0.59),
       onDetect: onBarcodeDetected,
     );
   }
