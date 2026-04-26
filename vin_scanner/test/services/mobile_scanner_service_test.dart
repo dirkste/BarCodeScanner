@@ -73,5 +73,41 @@ void main() {
       final result = await resultFuture;
       expect(result.rawValue, '1HGCM82633A123456');
     });
+
+    // -------------------------------------------------------------------------
+    // Field-test regression cases
+    // Barcodes decoded from physical vehicles during field testing.
+    // These serve as regression anchors — if the VIN pattern or extraction
+    // logic is changed, these tests will catch regressions against real data.
+    // -------------------------------------------------------------------------
+
+    test('field test: Code 128 VIN (Chrysler minivan, 45ms)', () async {
+      // Field test 2026-04-26: door jamb sticker, Code 128, 45ms decode time.
+      const rawFromSticker = '2C4RDGCG0FR805928';
+      final service = MobileScannerService();
+      service.startScan();
+      final resultFuture = service.results.first;
+      service.simulateDecode(rawFromSticker);
+      final result = await resultFuture;
+      expect(result.rawValue, '2C4RDGCG0FR805928');
+    });
+
+    test('field test: Code 39 VIN with I-prefix (Ram pickup, 27ms)', () async {
+      // Field test 2026-04-26: door jamb sticker, Code 39, industry-standard
+      // I-prefix, 27ms decode time. I-prefix must be stripped from raw value.
+      const rawFromSticker = 'I3C6UR5JJ3HG590897';
+      final service = MobileScannerService();
+      service.startScan();
+      final resultFuture = service.results.first;
+      service.simulateDecode(rawFromSticker);
+      final result = await resultFuture;
+      expect(result.rawValue, '3C6UR5JJ3HG590897');
+    });
+
+    test('dispose() is idempotent — second call does not throw', () {
+      final service = MobileScannerService();
+      service.dispose();
+      expect(() => service.dispose(), returnsNormally);
+    });
   });
 }
