@@ -1,17 +1,18 @@
-# vin_scanner
+# VIN Scanner
 
-A new Flutter project.
+Flutter app that scans vehicle VIN barcodes (Code 39 / Code 128) from door jamb stickers using the device camera.
 
-## Getting Started
+## Quick orientation
 
-This project is a starting point for a Flutter application.
+- **Requirements & exit criteria** — see [`../REQUIREMENTS.md`](../REQUIREMENTS.md)
+- **Architecture decisions & handoff notes** — see [`../HANDOFF.md`](../HANDOFF.md)
+- **Entry point** — `lib/main.dart` (DI composition root + camera permission gate)
+- **Abstraction boundary** — `lib/services/scanner_service.dart` (`ScannerService` interface)
+- **Concrete implementation** — `lib/services/mobile_scanner_service.dart` (`MobileScannerService`)
+- **Tests** — `test/` mirrors `lib/` structure; run with `flutter test`
 
-A few resources to get you started if this is your first Flutter project:
+## Run on device
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```sh
+flutter run -d <device-id>
+```
