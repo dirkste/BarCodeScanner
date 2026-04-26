@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import '../services/scanner_service.dart';
+import '../services/vehicle_lookup_service.dart';
 
 class ScannerScreen extends StatefulWidget {
   final bool cameraPermissionDenied;
@@ -19,9 +20,12 @@ class ScannerScreen extends StatefulWidget {
 
 class _ScannerScreenState extends State<ScannerScreen> {
   late final ScannerService _scannerService;
+  late final VehicleLookupService _lookupService;
   bool _scanning = false;
   bool _torchOn = false;
   ScanResult? _result;
+  VehicleInfo? _vehicleInfo;
+  bool _lookupInProgress = false;
   bool _showHint = false;
   Timer? _hintTimer;
   StreamSubscription<ScanResult>? _subscription;
@@ -30,6 +34,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
   void initState() {
     super.initState();
     _scannerService = GetIt.instance<ScannerService>();
+    _lookupService = GetIt.instance<VehicleLookupService>();
     // Camera opens but timer doesn't start until user taps Start Scan.
   }
 
@@ -38,6 +43,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
     setState(() {
       _scanning = true;
       _result = null;
+      _vehicleInfo = null;
+      _lookupInProgress = false;
       _showHint = false;
     });
     _scannerService.startScan();
@@ -61,6 +68,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
         setState(() {
           _result = result;
           _scanning = false;
+          _lookupInProgress = true;
+        });
+        _lookupService.lookup(result.rawValue).then((info) {
+          if (mounted) setState(() { _vehicleInfo = info; _lookupInProgress = false; });
         });
       }
     });
@@ -72,6 +83,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
     setState(() {
       _scanning = false;
       _result = null;
+      _vehicleInfo = null;
+      _lookupInProgress = false;
       _showHint = false;
     });
   }
@@ -113,7 +126,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
         children: [
           _scannerService.buildPreview(),
           if (result != null)
-            _ResultOverlay(result: result, onRescan: _resetScan)
+            _ResultOverlay(
+              result: result,
+              vehicleInfo: _vehicleInfo,
+              lookupInProgress: _lookupInProgress,
+              onRescan: _resetScan,
+            )
           else if (_scanning)
             _ScanningOverlay(showHint: _showHint, onCancel: _resetScan)
           else
@@ -288,9 +306,16 @@ class _TargetingPainter extends CustomPainter {
 
 class _ResultOverlay extends StatelessWidget {
   final ScanResult result;
+  final VehicleInfo? vehicleInfo;
+  final bool lookupInProgress;
   final VoidCallback onRescan;
 
-  const _ResultOverlay({required this.result, required this.onRescan});
+  const _ResultOverlay({
+    required this.result,
+    required this.vehicleInfo,
+    required this.lookupInProgress,
+    required this.onRescan,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -309,17 +334,70 @@ class _ResultOverlay extends StatelessWidget {
                 style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Text(
                 '${result.elapsedMs}ms',
-                style: const TextStyle(color: Colors.amber, fontSize: 16),
+                style: const TextStyle(color: Colors.amber, fontSize: 14),
               ),
+              const SizedBox(height: 24),
+              _VehicleInfoSection(vehicleInfo: vehicleInfo, loading: lookupInProgress),
               const SizedBox(height: 32),
               ElevatedButton(onPressed: onRescan, child: const Text('Scan Again')),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _VehicleInfoSection extends StatelessWidget {
+  final VehicleInfo? vehicleInfo;
+  final bool loading;
+
+  const _VehicleInfoSection({required this.vehicleInfo, required this.loading});
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return const Column(
+        children: [
+          CircularProgressIndicator(color: Colors.white),
+          SizedBox(height: 8),
+          Text('Looking up vehicle…', style: TextStyle(color: Colors.white70, fontSize: 14)),
+        ],
+      );
+    }
+    final info = vehicleInfo;
+    if (info == null) return const SizedBox.shrink();
+    if (info.hasError) {
+      return Text(
+        'Lookup failed: ${info.errorText}',
+        style: const TextStyle(color: Colors.redAccent, fontSize: 14),
+        textAlign: TextAlign.center,
+      );
+    }
+    return Column(
+      children: [
+        if (info.year != null || info.make != null || info.model != null)
+          Text(
+            [info.year, info.make, info.model].whereType<String>().join(' '),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        if (info.trim != null) ...[  
+          const SizedBox(height: 4),
+          Text(
+            info.trim!,
+            style: const TextStyle(color: Colors.white70, fontSize: 15),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ],
     );
   }
 }
